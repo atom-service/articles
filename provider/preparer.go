@@ -10,33 +10,38 @@ import (
 )
 
 var (
-	createArticleTableStmt           *sqlx.Stmt
-	createCategoryTableStmt          *sqlx.Stmt
-	createLabelTableStmt             *sqlx.Stmt
-	insertArticleStmt                *sqlx.NamedStmt // 插入一条文章
-	queryArticleByIDStmt             *sqlx.NamedStmt // 使用 ID 查询文章
+	createArticleTableStmt  *sqlx.Stmt
+	createCategoryTableStmt *sqlx.Stmt
+	createLabelTableStmt    *sqlx.Stmt
+
+	insertArticleStmt  *sqlx.NamedStmt // 插入一条文章
+	insertLabelStmt    *sqlx.NamedStmt // 插入一条标签
+	insertCategoryStmt *sqlx.NamedStmt // 插入一条分类
+
+	updateArticleByIDStmt  *sqlx.NamedStmt // 根据 ID 更新文章
+	updateLabelByIDStmt    *sqlx.NamedStmt // 使用 ID 更新 标签
+	updateCategoryByIDStmt *sqlx.NamedStmt //  通过 ID 更新分类信息
+
 	countArticleByIDStmt             *sqlx.NamedStmt // 根据 ID 统计文章
-	deleteArticleByIDStmt            *sqlx.NamedStmt // 删除文章
-	queryArticleByOwnerStmt          *sqlx.NamedStmt
 	countArticleByOwnerStmt          *sqlx.NamedStmt
-	updateArticleByIDStmt            *sqlx.NamedStmt // 根据 ID 更新文章
-	queryArticleByOwnerCategoryStmt  *sqlx.NamedStmt // 查询分类下的所有文章
 	countCategoryByIDStmt            *sqlx.NamedStmt // 使用 ID 统计分类
-	queryLabelByIDStmt               *sqlx.NamedStmt // 使用 ID 查询 标签
-	updateLabelByIDStmt              *sqlx.NamedStmt // 使用 ID 更新 标签
 	countLabelByIDStmt               *sqlx.NamedStmt // 使用 ID 统计 标签
-	deleteLabelByIDStmt              *sqlx.NamedStmt // 使用 ID 删除 标签
-	insertLabelStmt                  *sqlx.NamedStmt // 插入一条标签
-	queryLabelByOwnerStmt            *sqlx.NamedStmt // 插入一条标签
-	insertCategoryStmt               *sqlx.NamedStmt // 插入一条分类
-	queryCategoryByOwnerStmt         *sqlx.NamedStmt // 通过 Owner 查询
-	queryCategoryByOwnerCategoryStmt *sqlx.NamedStmt // 通过 OwnerCategory 查询
-	updateCategoryByIDStmt           *sqlx.NamedStmt //  通过 ID 更新分类信息
-	deleteCategoryByIDStmt           *sqlx.NamedStmt //  通过 ID 删除分类信息
 	countArticleByOwnerCategoryStmt  *sqlx.NamedStmt
 	countLabelByOwnerStmt            *sqlx.NamedStmt
 	countCategoryByOwnerStmt         *sqlx.NamedStmt
 	countCategoryByOwnerCategoryStmt *sqlx.NamedStmt
+
+	queryArticleByIDStmt             *sqlx.NamedStmt // 使用 ID 查询文章
+	queryArticleByOwnerStmt          *sqlx.NamedStmt
+	queryArticleByOwnerCategoryStmt  *sqlx.NamedStmt // 查询分类下的所有文章
+	queryLabelByIDStmt               *sqlx.NamedStmt // 使用 ID 查询 标签
+	queryLabelByOwnerStmt            *sqlx.NamedStmt // 插入一条标签
+	queryCategoryByOwnerStmt         *sqlx.NamedStmt // 通过 Owner 查询
+	queryCategoryByOwnerCategoryStmt *sqlx.NamedStmt // 通过 OwnerCategory 查询
+
+	deleteArticleByIDStmt  *sqlx.NamedStmt // 删除文章
+	deleteLabelByIDStmt    *sqlx.NamedStmt // 使用 ID 删除 标签
+	deleteCategoryByIDStmt *sqlx.NamedStmt //  通过 ID 删除分类信息
 )
 
 func init() {
