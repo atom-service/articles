@@ -1,0 +1,251 @@
+syntax = "proto3";
+
+package standard;
+
+// 状态
+enum State {
+  UNKNOWN = 0 ;   // 未知
+  SUCCESS = 1 ;   // 成功
+  FAILURE = 2 ;   // 失败
+  SERVICE_ERROR = 3 ;   // 服务错误
+  PARAMS_INVALID = 4 ;   // 参数不合法
+  ILLEGAL_REQUEST = 5 ;   // 非法请求
+  LABEL_NOT_EXIST = 6 ;   // 标签不存在
+  ARTICLE_NOT_EXIST = 7 ;   // 文章不存在
+  CATEGORY_NOT_EXIST = 8 ;   // 分类不存在
+  DB_OPERATION_FATLURE = 9 ;    // 数据库操作失败
+  LABEL_ALREADY_EXISTS = 10 ;   // 标签已经存在
+  ARTICLE_ALREADY_EXISTS = 11 ;   // 文章已经存在
+  CATEGORY_ALREADY_EXISTS = 12 ;   // 分类已经存在
+}
+
+// 分类
+message Category {
+  uint64 ID = 1 ;     // 服务的 ID
+  string Type = 2 ;   // 服务的类型
+  string Name = 3 ;   // 名称
+  uint64 Owner = 4;   // 所属用户
+  string State = 5 ;  // 状态
+  string CreateTime = 6 ; // 内容
+  string UpdateTime = 7 ; // 内容
+  uint64 OwnerCategory = 8 ;
+}
+
+message Article {
+  uint64 ID = 1 ;      // 服务的 ID
+  string Type = 2 ;    // 类型
+  string Title = 3 ;   // 标题
+  uint64 Owner = 4;    // 所属用户
+  string State = 5 ;   // 状态
+  string Cover = 6 ;   // 封面
+  string Summary = 7 ; // 摘要
+  string Context = 8 ; // 内容
+  string CreateTime = 9 ; // 内容
+  string UpdateTime = 10 ; // 内容
+  uint64 OwnerCategory = 11 ; // 所属分类
+}
+
+// Label 标签
+message Label {
+	uint64 ID = 1 ;
+	string Type = 2 ;
+	string State = 3 ;
+  string Value = 4 ;
+  uint64 Owner = 6 ;
+  string CreateTime = 7 ;
+  string UpdateTime = 8 ;
+}
+
+message CreateRequest {
+  Article Article = 1 ;
+}
+
+message CreateResponse {
+  State State = 1 ;
+  string Message = 2 ;
+}
+
+message QueryByIDRequest {
+  uint64 ID = 1 ;
+}
+
+message QueryByIDResponse {
+  State State = 1 ;
+  string Message = 2 ;
+  Article Data = 3 ;
+}
+
+message DeleteByIDRequest {
+  uint64 ID = 1 ;
+}
+
+message DeleteByIDResponse {
+  State State = 1 ;
+  string Message = 2 ;
+}
+
+message UpdateByIDRequest {
+  uint64 ID = 1 ;
+  Article Data = 2 ;
+}
+
+message UpdateByIDResponse {
+  State State = 1 ;
+  string Message = 2 ;
+}
+
+message QueryByOwnerRequest {
+  uint64 Owner = 1 ;
+  uint64 Limit = 2 ;
+  uint64 Offset = 3 ;
+}
+
+message QueryByOwnerResponse {
+  State State = 1 ;
+  string Message = 2 ;
+  uint64 Total = 3 ;
+  repeated Article Data = 4 ;
+}
+
+message QueryByOwnerCategoryRequest {
+  uint64 OwnerCategory = 1 ;
+  uint64 Limit = 2 ;
+  uint64 Offset = 3 ;
+}
+
+message QueryByOwnerCategoryResponse {
+  State State = 1 ;
+  string Message = 2 ;
+  uint64 Total = 3 ;
+  repeated Article Data = 4 ;
+}
+
+message QueryLabelByIDRequest {
+  uint64 ID = 1 ;
+}
+
+message QueryLabelByIDResponse {
+  State State = 1 ;
+  string Message = 2 ;
+  Label Data = 3 ;
+}
+
+message UpdateLabelByIDRequest {
+  uint64 ID = 1 ;
+  Label Data = 2 ;
+}
+
+message UpdateLabelByIDResponse {
+  State State = 1 ;
+  string Message = 2 ;
+}
+
+message DeleteLabelByIDRequest {
+  uint64 ID = 1 ;
+}
+
+message DeleteLabelByIDResponse {
+  State State = 1 ;
+  string Message = 2 ;
+}
+
+message CreateLabelByOwnerRequest {
+  uint64 Owner = 1 ;
+  Label Label = 2 ;
+}
+
+message CreateLabelByOwnerResponse {
+  State State = 1 ;
+  string Message = 2 ;
+}
+
+message QueryLabelByOwnerRequest {
+  uint64 Owner = 1 ;
+  uint64 Limit = 2 ;
+  uint64 Offset = 3 ;
+}
+
+message QueryLabelByOwnerResponse {
+  State State = 1 ;
+  string Message = 2 ;
+  uint64 Total = 3 ;
+  repeated Label Data = 4 ;
+}
+
+message CreateCategoryRequest {
+  Category Category = 1 ;
+}
+
+message CreateCategoryResponse {
+  State State = 1 ;
+  string Message = 2 ;
+}
+
+message UpdateCategoryByIDRequest {
+  uint64 ID = 1 ;
+  Category Data = 2 ;
+}
+
+message UpdateCategoryByIDResponse {
+  State State = 1 ;
+  string Message = 2 ;
+}
+
+message DeleteCategoryByIDRequest {
+  uint64 ID = 1 ;
+}
+
+message DeleteCategoryByIDResponse {
+  State State = 1 ;
+  string Message = 2 ;
+}
+
+message QueryCategoryByOwnerRequest {
+  uint64 Owner  = 1 ;
+  uint64 Limit  = 2 ;
+  uint64 Offset = 3 ;
+}
+
+message QueryCategoryByOwnerResponse {
+  State State = 1 ;
+  string Message = 2 ;
+  uint64 Total = 3 ;
+  repeated Category Data = 4 ;
+}
+
+message QueryCategoryByOwnerCategoryRequest {
+  uint64 OwnerCategory  = 1 ;
+  uint64 Limit = 2 ;
+  uint64 Offset = 3 ;
+}
+
+message QueryCategoryByOwnerCategoryResponse {
+  State State = 1 ;
+  string Message = 2 ;
+  uint64 Total = 3 ;
+  repeated Category Data = 4 ;
+}
+
+service Articles {
+  // 文章操作
+  rpc Create(CreateRequest) returns (CreateResponse){} // 创建一个
+  rpc QueryByID(QueryByIDRequest) returns (QueryByIDResponse){} // 通过 ID 查询
+  rpc DeleteByID(DeleteByIDRequest) returns (DeleteByIDResponse){} // 通过 ID 删除
+  rpc UpdateByID(UpdateByIDRequest) returns (UpdateByIDResponse){} // 创建 ID 更新
+  rpc QueryByOwner(QueryByOwnerRequest) returns (QueryByOwnerResponse){} // 根据所属人查询
+  rpc QueryByOwnerCategory(QueryByOwnerCategoryRequest) returns (QueryByOwnerCategoryResponse){}    // 根据所属分类查询
+
+  // 标签操作 贴在文章上的标签
+  rpc QueryLabelByID(QueryLabelByIDRequest)returns(QueryLabelByIDResponse){} // 根据 ID 查询标签
+  rpc UpdateLabelByID(UpdateLabelByIDRequest)returns(UpdateLabelByIDResponse){} // 更新用户
+  rpc DeleteLabelByID(DeleteLabelByIDRequest)returns(DeleteLabelByIDResponse){} // 删除用户
+  rpc QueryLabelByOwner(QueryLabelByOwnerRequest)returns(QueryLabelByOwnerResponse){} // 根据指定文章的标签
+  rpc CreateLabelByOwner(CreateLabelByOwnerRequest)returns(CreateLabelByOwnerResponse){} // 创建一个用户
+
+  // 文章的 分组
+  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse){} // 创建一个分类
+  rpc UpdateCategoryByID(UpdateCategoryByIDRequest) returns (UpdateCategoryByIDResponse){} // 通过 ID 更新
+  rpc DeleteCategoryByID(DeleteCategoryByIDRequest) returns (DeleteCategoryByIDResponse){} // 通过 ID 删除
+  rpc QueryCategoryByOwner(QueryCategoryByOwnerRequest) returns (QueryCategoryByOwnerResponse){} // 根据 分类 的 Owner 查询分类
+  rpc QueryCategoryByOwnerCategory(QueryCategoryByOwnerCategoryRequest) returns (QueryCategoryByOwnerCategoryResponse){}       // 查询指定分类下的子分类 查询分类
+}
