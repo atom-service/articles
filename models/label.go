@@ -1,6 +1,6 @@
 package models
 
-import "github.com/yinxulai/grpc-services/articles/standard"
+import "github.com/yinxulai/grpc-module-articles/standard"
 
 // Label 类型
 const (

@@ -56,64 +56,71 @@ message Label {
   string UpdateTime = 8 ;
 }
 
-message CreateRequest {
-  Article Article = 1 ;
+message CreateArticleRequest {
+  string Type = 1 ;    // 类型
+  string Title = 2 ;   // 标题
+  uint64 Owner = 3;    // 所属用户
+  string State = 4 ;   // 状态
+  string Cover = 5 ;   // 封面
+  string Summary = 6 ; // 摘要
+  string Context = 7 ; // 内容
+  uint64 OwnerCategory = 8  ; // 所属分类
 }
 
-message CreateResponse {
+message CreateArticleResponse {
   State State = 1 ;
   string Message = 2 ;
 }
 
-message QueryByIDRequest {
+message QueryArticleByIDRequest {
   uint64 ID = 1 ;
 }
 
-message QueryByIDResponse {
+message QueryArticleByIDResponse {
   State State = 1 ;
   string Message = 2 ;
   Article Data = 3 ;
 }
 
-message DeleteByIDRequest {
+message DeleteArticleByIDRequest {
   uint64 ID = 1 ;
 }
 
-message DeleteByIDResponse {
+message DeleteArticleByIDResponse {
   State State = 1 ;
   string Message = 2 ;
 }
 
-message UpdateByIDRequest {
+message UpdateArticleByIDRequest {
   uint64 ID = 1 ;
   Article Data = 2 ;
 }
 
-message UpdateByIDResponse {
+message UpdateArticleByIDResponse {
   State State = 1 ;
   string Message = 2 ;
 }
 
-message QueryByOwnerRequest {
+message QueryArticleByOwnerRequest {
   uint64 Owner = 1 ;
   uint64 Limit = 2 ;
   uint64 Offset = 3 ;
 }
 
-message QueryByOwnerResponse {
+message QueryArticleByOwnerResponse {
   State State = 1 ;
   string Message = 2 ;
   uint64 Total = 3 ;
   repeated Article Data = 4 ;
 }
 
-message QueryByOwnerCategoryRequest {
+message QueryArticleByOwnerCategoryRequest {
   uint64 OwnerCategory = 1 ;
   uint64 Limit = 2 ;
   uint64 Offset = 3 ;
 }
 
-message QueryByOwnerCategoryResponse {
+message QueryArticleByOwnerCategoryResponse {
   State State = 1 ;
   string Message = 2 ;
   uint64 Total = 3 ;
@@ -173,7 +180,11 @@ message QueryLabelByOwnerResponse {
 }
 
 message CreateCategoryRequest {
-  Category Category = 1 ;
+  string Type = 1 ;   // 类别类型
+  string Name = 2 ;   // 名称
+  uint64 Owner = 3;   // 所属用户
+  string State = 4 ;  // 状态
+  uint64 OwnerCategory = 5 ; // 所属的大类
 }
 
 message CreateCategoryResponse {
@@ -228,12 +239,19 @@ message QueryCategoryByOwnerCategoryResponse {
 
 service Articles {
   // 文章操作
-  rpc Create(CreateRequest) returns (CreateResponse){} // 创建一个
-  rpc QueryByID(QueryByIDRequest) returns (QueryByIDResponse){} // 通过 ID 查询
-  rpc DeleteByID(DeleteByIDRequest) returns (DeleteByIDResponse){} // 通过 ID 删除
-  rpc UpdateByID(UpdateByIDRequest) returns (UpdateByIDResponse){} // 创建 ID 更新
-  rpc QueryByOwner(QueryByOwnerRequest) returns (QueryByOwnerResponse){} // 根据所属人查询
-  rpc QueryByOwnerCategory(QueryByOwnerCategoryRequest) returns (QueryByOwnerCategoryResponse){}    // 根据所属分类查询
+  rpc CreateArticle(CreateArticleRequest) returns (CreateArticleResponse){} // 创建一个
+  rpc QueryArticleByID(QueryArticleByIDRequest) returns (QueryArticleByIDResponse){} // 通过 ID 查询
+  rpc DeleteArticleByID(DeleteArticleByIDRequest) returns (DeleteArticleByIDResponse){} // 通过 ID 删除
+  rpc UpdateArticleByID(UpdateArticleByIDRequest) returns (UpdateArticleByIDResponse){} // 创建 ID 更新
+  rpc QueryArticleByOwner(QueryArticleByOwnerRequest) returns (QueryArticleByOwnerResponse){} // 根据所属人查询
+  rpc QueryArticleByOwnerCategory(QueryArticleByOwnerCategoryRequest) returns (QueryArticleByOwnerCategoryResponse){}    // 根据所属分类查询
+
+  // 文章的 分组
+  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse){} // 创建一个分类
+  rpc UpdateCategoryByID(UpdateCategoryByIDRequest) returns (UpdateCategoryByIDResponse){} // 通过 ID 更新
+  rpc DeleteCategoryByID(DeleteCategoryByIDRequest) returns (DeleteCategoryByIDResponse){} // 通过 ID 删除
+  rpc QueryCategoryByOwner(QueryCategoryByOwnerRequest) returns (QueryCategoryByOwnerResponse){} // 根据 分类 的 Owner 查询分类
+  rpc QueryCategoryByOwnerCategory(QueryCategoryByOwnerCategoryRequest) returns (QueryCategoryByOwnerCategoryResponse){}  // 查询指定分类下的子分类 查询分类
 
   // 标签操作 贴在文章上的标签
   rpc QueryLabelByID(QueryLabelByIDRequest)returns(QueryLabelByIDResponse){} // 根据 ID 查询标签
@@ -241,11 +259,4 @@ service Articles {
   rpc DeleteLabelByID(DeleteLabelByIDRequest)returns(DeleteLabelByIDResponse){} // 删除用户
   rpc QueryLabelByOwner(QueryLabelByOwnerRequest)returns(QueryLabelByOwnerResponse){} // 根据指定文章的标签
   rpc CreateLabelByOwner(CreateLabelByOwnerRequest)returns(CreateLabelByOwnerResponse){} // 创建一个用户
-
-  // 文章的 分组
-  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse){} // 创建一个分类
-  rpc UpdateCategoryByID(UpdateCategoryByIDRequest) returns (UpdateCategoryByIDResponse){} // 通过 ID 更新
-  rpc DeleteCategoryByID(DeleteCategoryByIDRequest) returns (DeleteCategoryByIDResponse){} // 通过 ID 删除
-  rpc QueryCategoryByOwner(QueryCategoryByOwnerRequest) returns (QueryCategoryByOwnerResponse){} // 根据 分类 的 Owner 查询分类
-  rpc QueryCategoryByOwnerCategory(QueryCategoryByOwnerCategoryRequest) returns (QueryCategoryByOwnerCategoryResponse){}       // 查询指定分类下的子分类 查询分类
 }

@@ -13,6 +13,7 @@ import (
 	log "log"
 	math "math"
 	net_http "net/http"
+	strconv "strconv"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -47,12 +48,12 @@ func NewHandler(grpcAddr string, stringer func(req, resp interface{}) ([]byte, e
 	mux := net_http.NewServeMux()
 	ArticlesClient := NewArticlesClient(conn)
 	ArticlesServer := NewHTMLArticlesServer(ArticlesClient, stringer)
-	mux.HandleFunc("/Articles/Create", ArticlesServer.Create)
-	mux.HandleFunc("/Articles/QueryByID", ArticlesServer.QueryByID)
-	mux.HandleFunc("/Articles/DeleteByID", ArticlesServer.DeleteByID)
-	mux.HandleFunc("/Articles/UpdateByID", ArticlesServer.UpdateByID)
-	mux.HandleFunc("/Articles/QueryByOwner", ArticlesServer.QueryByOwner)
-	mux.HandleFunc("/Articles/QueryByOwnerCategory", ArticlesServer.QueryByOwnerCategory)
+	mux.HandleFunc("/Articles/CreateArticle", ArticlesServer.CreateArticle)
+	mux.HandleFunc("/Articles/QueryArticleByID", ArticlesServer.QueryArticleByID)
+	mux.HandleFunc("/Articles/DeleteArticleByID", ArticlesServer.DeleteArticleByID)
+	mux.HandleFunc("/Articles/UpdateArticleByID", ArticlesServer.UpdateArticleByID)
+	mux.HandleFunc("/Articles/QueryArticleByOwner", ArticlesServer.QueryArticleByOwner)
+	mux.HandleFunc("/Articles/QueryArticleByOwnerCategory", ArticlesServer.QueryArticleByOwnerCategory)
 	mux.HandleFunc("/Articles/QueryLabelByID", ArticlesServer.QueryLabelByID)
 	mux.HandleFunc("/Articles/UpdateLabelByID", ArticlesServer.UpdateLabelByID)
 	mux.HandleFunc("/Articles/DeleteLabelByID", ArticlesServer.DeleteLabelByID)
@@ -75,12 +76,12 @@ func NewHTMLArticlesServer(client ArticlesClient, stringer func(req, resp interf
 	return &htmlArticles{client, stringer}
 }
 
-var FormArticles_Create string = `<div class="container"><div class="jumbotron">
-	<h3>Articles: Create</h3>
+var FormArticles_CreateArticle string = `<div class="container"><div class="jumbotron">
+	<h3>Articles: CreateArticle</h3>
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -153,15 +154,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -456,26 +479,18 @@ function setRepStrValue(value) {
 	return "value=" + JSON.stringify(HTMLEncode(decode_utf8(value)));
 }
 
-var nodeFactory = {"CreateRequest_RootKeyword": buildCreateRequest_RootKeyword(emptyIfNull(null)),
-"Article_Article": buildArticle_Article(emptyIfNull(null)),}
-	function buildArticle_Article(json) {
+var nodeFactory = {"CreateArticleRequest_RootKeyword": buildCreateArticleRequest_RootKeyword(emptyIfNull(null)),}
+	function buildCreateArticleRequest_RootKeyword(json) {
 if (json == undefined) {
 		return "";
 	}
 	
-var s = '<div class="node" type="Article_Article" fieldname="Article" repeated="false">';
-s += '<div class="row"><div class="col-sm-2">'
-s += '<a href="#" class="del-child btn btn-danger btn-xs" role="button" fieldname="Article">Remove</a>'
-s += '</div><div class="col-sm-10">'
-s += '<label class="heading">Article</label>'
-s += '</div></div>'
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
-				
+var s = '<div class="node" type="CreateArticleRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Type: </label><div class="col-sm-10"><input class="form-control" name="Type" type="text" '+setStrValue("", json["Type"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Title: </label><div class="col-sm-10"><input class="form-control" name="Title" type="text" '+setStrValue("", json["Title"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="number" step="1" '+setValue(0, json["Owner"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="text" '+setStrValue("", json["Owner"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">State: </label><div class="col-sm-10"><input class="form-control" name="State" type="text" '+setStrValue("", json["State"])+'/></div></div>';
 				
@@ -485,47 +500,28 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">Summar
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Context: </label><div class="col-sm-10"><input class="form-control" name="Context" type="text" '+setStrValue("", json["Context"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">CreateTime: </label><div class="col-sm-10"><input class="form-control" name="CreateTime" type="text" '+setStrValue("", json["CreateTime"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="text" '+setStrValue("", json["OwnerCategory"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">UpdateTime: </label><div class="col-sm-10"><input class="form-control" name="UpdateTime" type="text" '+setStrValue("", json["UpdateTime"])+'/></div></div>';
-				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="number" step="1" '+setValue(0, json["OwnerCategory"])+'/></div></div>';
-				
-
-		s += '</div>';
-		return s;
-		}
-
-function buildCreateRequest_RootKeyword(json) {
-if (json == undefined) {
-		return "";
-	}
-	
-var s = '<div class="node" type="CreateRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="children" type="Article_Article">' + buildArticle_Article(json["Article"]);
-			s += '</div>';
-		s += setLink(json, "Article_Article", "Article", "");
-		
 
 			s += '</div>';
 			var node = $(s);
 			activateLinks(node);
 			return node;
 		}function init() {
-	var root = $(nodeFactory["CreateRequest_RootKeyword"]);
+	var root = $(nodeFactory["CreateArticleRequest_RootKeyword"]);
 	var jsonText = getUrlParameter("json");
 	if (jsonText == undefined) {
 		var json = emptyIfNull(null);
 	} else {
 		var json = JSON.parse(unescape(jsonText));
 	}
-	$("#form > .children").html(buildCreateRequest_RootKeyword(json));
+	$("#form > .children").html(buildCreateArticleRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
-		window.location.assign("./Create?json="+j);
+		window.location.assign("./CreateArticle?json="+j);
 	});
 }
 
@@ -583,11 +579,39 @@ s += '<div class="children" type="Article_Article">' + buildArticle_Article(json
 	
 	</div>`
 
-func (this *htmlArticles) Create(w net_http.ResponseWriter, req *net_http.Request) {
-	w.Write([]byte(Header(`Articles`, `Create`)))
+func (this *htmlArticles) CreateArticle(w net_http.ResponseWriter, req *net_http.Request) {
+	w.Write([]byte(Header(`Articles`, `CreateArticle`)))
 	jsonString := req.FormValue("json")
 	someValue := false
-	msg := &CreateRequest{}
+	msg := &CreateArticleRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -599,9 +623,9 @@ func (this *htmlArticles) Create(w net_http.ResponseWriter, req *net_http.Reques
 		}
 		someValue = true
 	}
-	w.Write([]byte(FormArticles_Create))
+	w.Write([]byte(FormArticles_CreateArticle))
 	if someValue {
-		reply, err := this.client.Create(golang_org_x_net_context.Background(), msg)
+		reply, err := this.client.CreateArticle(golang_org_x_net_context.Background(), msg)
 		if err != nil {
 			if err != io.EOF {
 				w.Write([]byte("<div class=\"alert alert-danger\" role=\"alert\">" + err.Error() + "</div>"))
@@ -622,12 +646,12 @@ func (this *htmlArticles) Create(w net_http.ResponseWriter, req *net_http.Reques
 	w.Write([]byte(Footer))
 }
 
-var FormArticles_QueryByID string = `<div class="container"><div class="jumbotron">
-	<h3>Articles: QueryByID</h3>
+var FormArticles_QueryArticleByID string = `<div class="container"><div class="jumbotron">
+	<h3>Articles: QueryArticleByID</h3>
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -700,15 +724,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -1003,14 +1049,14 @@ function setRepStrValue(value) {
 	return "value=" + JSON.stringify(HTMLEncode(decode_utf8(value)));
 }
 
-var nodeFactory = {"QueryByIDRequest_RootKeyword": buildQueryByIDRequest_RootKeyword(emptyIfNull(null)),}
-	function buildQueryByIDRequest_RootKeyword(json) {
+var nodeFactory = {"QueryArticleByIDRequest_RootKeyword": buildQueryArticleByIDRequest_RootKeyword(emptyIfNull(null)),}
+	function buildQueryArticleByIDRequest_RootKeyword(json) {
 if (json == undefined) {
 		return "";
 	}
 	
-var s = '<div class="node" type="QueryByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+var s = '<div class="node" type="QueryArticleByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 
 			s += '</div>';
@@ -1018,20 +1064,20 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </
 			activateLinks(node);
 			return node;
 		}function init() {
-	var root = $(nodeFactory["QueryByIDRequest_RootKeyword"]);
+	var root = $(nodeFactory["QueryArticleByIDRequest_RootKeyword"]);
 	var jsonText = getUrlParameter("json");
 	if (jsonText == undefined) {
 		var json = emptyIfNull(null);
 	} else {
 		var json = JSON.parse(unescape(jsonText));
 	}
-	$("#form > .children").html(buildQueryByIDRequest_RootKeyword(json));
+	$("#form > .children").html(buildQueryArticleByIDRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
-		window.location.assign("./QueryByID?json="+j);
+		window.location.assign("./QueryArticleByID?json="+j);
 	});
 }
 
@@ -1089,11 +1135,39 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </
 	
 	</div>`
 
-func (this *htmlArticles) QueryByID(w net_http.ResponseWriter, req *net_http.Request) {
-	w.Write([]byte(Header(`Articles`, `QueryByID`)))
+func (this *htmlArticles) QueryArticleByID(w net_http.ResponseWriter, req *net_http.Request) {
+	w.Write([]byte(Header(`Articles`, `QueryArticleByID`)))
 	jsonString := req.FormValue("json")
 	someValue := false
-	msg := &QueryByIDRequest{}
+	msg := &QueryArticleByIDRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -1105,9 +1179,9 @@ func (this *htmlArticles) QueryByID(w net_http.ResponseWriter, req *net_http.Req
 		}
 		someValue = true
 	}
-	w.Write([]byte(FormArticles_QueryByID))
+	w.Write([]byte(FormArticles_QueryArticleByID))
 	if someValue {
-		reply, err := this.client.QueryByID(golang_org_x_net_context.Background(), msg)
+		reply, err := this.client.QueryArticleByID(golang_org_x_net_context.Background(), msg)
 		if err != nil {
 			if err != io.EOF {
 				w.Write([]byte("<div class=\"alert alert-danger\" role=\"alert\">" + err.Error() + "</div>"))
@@ -1128,12 +1202,12 @@ func (this *htmlArticles) QueryByID(w net_http.ResponseWriter, req *net_http.Req
 	w.Write([]byte(Footer))
 }
 
-var FormArticles_DeleteByID string = `<div class="container"><div class="jumbotron">
-	<h3>Articles: DeleteByID</h3>
+var FormArticles_DeleteArticleByID string = `<div class="container"><div class="jumbotron">
+	<h3>Articles: DeleteArticleByID</h3>
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -1206,15 +1280,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -1509,14 +1605,14 @@ function setRepStrValue(value) {
 	return "value=" + JSON.stringify(HTMLEncode(decode_utf8(value)));
 }
 
-var nodeFactory = {"DeleteByIDRequest_RootKeyword": buildDeleteByIDRequest_RootKeyword(emptyIfNull(null)),}
-	function buildDeleteByIDRequest_RootKeyword(json) {
+var nodeFactory = {"DeleteArticleByIDRequest_RootKeyword": buildDeleteArticleByIDRequest_RootKeyword(emptyIfNull(null)),}
+	function buildDeleteArticleByIDRequest_RootKeyword(json) {
 if (json == undefined) {
 		return "";
 	}
 	
-var s = '<div class="node" type="DeleteByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+var s = '<div class="node" type="DeleteArticleByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 
 			s += '</div>';
@@ -1524,20 +1620,20 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </
 			activateLinks(node);
 			return node;
 		}function init() {
-	var root = $(nodeFactory["DeleteByIDRequest_RootKeyword"]);
+	var root = $(nodeFactory["DeleteArticleByIDRequest_RootKeyword"]);
 	var jsonText = getUrlParameter("json");
 	if (jsonText == undefined) {
 		var json = emptyIfNull(null);
 	} else {
 		var json = JSON.parse(unescape(jsonText));
 	}
-	$("#form > .children").html(buildDeleteByIDRequest_RootKeyword(json));
+	$("#form > .children").html(buildDeleteArticleByIDRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
-		window.location.assign("./DeleteByID?json="+j);
+		window.location.assign("./DeleteArticleByID?json="+j);
 	});
 }
 
@@ -1595,11 +1691,39 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </
 	
 	</div>`
 
-func (this *htmlArticles) DeleteByID(w net_http.ResponseWriter, req *net_http.Request) {
-	w.Write([]byte(Header(`Articles`, `DeleteByID`)))
+func (this *htmlArticles) DeleteArticleByID(w net_http.ResponseWriter, req *net_http.Request) {
+	w.Write([]byte(Header(`Articles`, `DeleteArticleByID`)))
 	jsonString := req.FormValue("json")
 	someValue := false
-	msg := &DeleteByIDRequest{}
+	msg := &DeleteArticleByIDRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -1611,9 +1735,9 @@ func (this *htmlArticles) DeleteByID(w net_http.ResponseWriter, req *net_http.Re
 		}
 		someValue = true
 	}
-	w.Write([]byte(FormArticles_DeleteByID))
+	w.Write([]byte(FormArticles_DeleteArticleByID))
 	if someValue {
-		reply, err := this.client.DeleteByID(golang_org_x_net_context.Background(), msg)
+		reply, err := this.client.DeleteArticleByID(golang_org_x_net_context.Background(), msg)
 		if err != nil {
 			if err != io.EOF {
 				w.Write([]byte("<div class=\"alert alert-danger\" role=\"alert\">" + err.Error() + "</div>"))
@@ -1634,12 +1758,12 @@ func (this *htmlArticles) DeleteByID(w net_http.ResponseWriter, req *net_http.Re
 	w.Write([]byte(Footer))
 }
 
-var FormArticles_UpdateByID string = `<div class="container"><div class="jumbotron">
-	<h3>Articles: UpdateByID</h3>
+var FormArticles_UpdateArticleByID string = `<div class="container"><div class="jumbotron">
+	<h3>Articles: UpdateArticleByID</h3>
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -1712,15 +1836,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -2015,7 +2161,7 @@ function setRepStrValue(value) {
 	return "value=" + JSON.stringify(HTMLEncode(decode_utf8(value)));
 }
 
-var nodeFactory = {"UpdateByIDRequest_RootKeyword": buildUpdateByIDRequest_RootKeyword(emptyIfNull(null)),
+var nodeFactory = {"UpdateArticleByIDRequest_RootKeyword": buildUpdateArticleByIDRequest_RootKeyword(emptyIfNull(null)),
 "Article_Data": buildArticle_Data(emptyIfNull(null)),}
 	function buildArticle_Data(json) {
 if (json == undefined) {
@@ -2028,13 +2174,13 @@ s += '<a href="#" class="del-child btn btn-danger btn-xs" role="button" fieldnam
 s += '</div><div class="col-sm-10">'
 s += '<label class="heading">Data</label>'
 s += '</div></div>'
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Type: </label><div class="col-sm-10"><input class="form-control" name="Type" type="text" '+setStrValue("", json["Type"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Title: </label><div class="col-sm-10"><input class="form-control" name="Title" type="text" '+setStrValue("", json["Title"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="number" step="1" '+setValue(0, json["Owner"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="text" '+setStrValue("", json["Owner"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">State: </label><div class="col-sm-10"><input class="form-control" name="State" type="text" '+setStrValue("", json["State"])+'/></div></div>';
 				
@@ -2048,20 +2194,20 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">Create
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">UpdateTime: </label><div class="col-sm-10"><input class="form-control" name="UpdateTime" type="text" '+setStrValue("", json["UpdateTime"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="number" step="1" '+setValue(0, json["OwnerCategory"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="text" '+setStrValue("", json["OwnerCategory"])+'/></div></div>';
 				
 
 		s += '</div>';
 		return s;
 		}
 
-function buildUpdateByIDRequest_RootKeyword(json) {
+function buildUpdateArticleByIDRequest_RootKeyword(json) {
 if (json == undefined) {
 		return "";
 	}
 	
-var s = '<div class="node" type="UpdateByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+var s = '<div class="node" type="UpdateArticleByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 s += '<div class="children" type="Article_Data">' + buildArticle_Data(json["Data"]);
 			s += '</div>';
@@ -2073,20 +2219,20 @@ s += '<div class="children" type="Article_Data">' + buildArticle_Data(json["Data
 			activateLinks(node);
 			return node;
 		}function init() {
-	var root = $(nodeFactory["UpdateByIDRequest_RootKeyword"]);
+	var root = $(nodeFactory["UpdateArticleByIDRequest_RootKeyword"]);
 	var jsonText = getUrlParameter("json");
 	if (jsonText == undefined) {
 		var json = emptyIfNull(null);
 	} else {
 		var json = JSON.parse(unescape(jsonText));
 	}
-	$("#form > .children").html(buildUpdateByIDRequest_RootKeyword(json));
+	$("#form > .children").html(buildUpdateArticleByIDRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
-		window.location.assign("./UpdateByID?json="+j);
+		window.location.assign("./UpdateArticleByID?json="+j);
 	});
 }
 
@@ -2144,11 +2290,39 @@ s += '<div class="children" type="Article_Data">' + buildArticle_Data(json["Data
 	
 	</div>`
 
-func (this *htmlArticles) UpdateByID(w net_http.ResponseWriter, req *net_http.Request) {
-	w.Write([]byte(Header(`Articles`, `UpdateByID`)))
+func (this *htmlArticles) UpdateArticleByID(w net_http.ResponseWriter, req *net_http.Request) {
+	w.Write([]byte(Header(`Articles`, `UpdateArticleByID`)))
 	jsonString := req.FormValue("json")
 	someValue := false
-	msg := &UpdateByIDRequest{}
+	msg := &UpdateArticleByIDRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -2160,9 +2334,9 @@ func (this *htmlArticles) UpdateByID(w net_http.ResponseWriter, req *net_http.Re
 		}
 		someValue = true
 	}
-	w.Write([]byte(FormArticles_UpdateByID))
+	w.Write([]byte(FormArticles_UpdateArticleByID))
 	if someValue {
-		reply, err := this.client.UpdateByID(golang_org_x_net_context.Background(), msg)
+		reply, err := this.client.UpdateArticleByID(golang_org_x_net_context.Background(), msg)
 		if err != nil {
 			if err != io.EOF {
 				w.Write([]byte("<div class=\"alert alert-danger\" role=\"alert\">" + err.Error() + "</div>"))
@@ -2183,12 +2357,12 @@ func (this *htmlArticles) UpdateByID(w net_http.ResponseWriter, req *net_http.Re
 	w.Write([]byte(Footer))
 }
 
-var FormArticles_QueryByOwner string = `<div class="container"><div class="jumbotron">
-	<h3>Articles: QueryByOwner</h3>
+var FormArticles_QueryArticleByOwner string = `<div class="container"><div class="jumbotron">
+	<h3>Articles: QueryArticleByOwner</h3>
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -2261,15 +2435,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -2564,18 +2760,18 @@ function setRepStrValue(value) {
 	return "value=" + JSON.stringify(HTMLEncode(decode_utf8(value)));
 }
 
-var nodeFactory = {"QueryByOwnerRequest_RootKeyword": buildQueryByOwnerRequest_RootKeyword(emptyIfNull(null)),}
-	function buildQueryByOwnerRequest_RootKeyword(json) {
+var nodeFactory = {"QueryArticleByOwnerRequest_RootKeyword": buildQueryArticleByOwnerRequest_RootKeyword(emptyIfNull(null)),}
+	function buildQueryArticleByOwnerRequest_RootKeyword(json) {
 if (json == undefined) {
 		return "";
 	}
 	
-var s = '<div class="node" type="QueryByOwnerRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="number" step="1" '+setValue(0, json["Owner"])+'/></div></div>';
+var s = '<div class="node" type="QueryArticleByOwnerRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="text" '+setStrValue("", json["Owner"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Limit: </label><div class="col-sm-10"><input class="form-control" name="Limit" type="number" step="1" '+setValue(0, json["Limit"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Limit: </label><div class="col-sm-10"><input class="form-control" name="Limit" type="text" '+setStrValue("", json["Limit"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset: </label><div class="col-sm-10"><input class="form-control" name="Offset" type="number" step="1" '+setValue(0, json["Offset"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset: </label><div class="col-sm-10"><input class="form-control" name="Offset" type="text" '+setStrValue("", json["Offset"])+'/></div></div>';
 				
 
 			s += '</div>';
@@ -2583,20 +2779,20 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset
 			activateLinks(node);
 			return node;
 		}function init() {
-	var root = $(nodeFactory["QueryByOwnerRequest_RootKeyword"]);
+	var root = $(nodeFactory["QueryArticleByOwnerRequest_RootKeyword"]);
 	var jsonText = getUrlParameter("json");
 	if (jsonText == undefined) {
 		var json = emptyIfNull(null);
 	} else {
 		var json = JSON.parse(unescape(jsonText));
 	}
-	$("#form > .children").html(buildQueryByOwnerRequest_RootKeyword(json));
+	$("#form > .children").html(buildQueryArticleByOwnerRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
-		window.location.assign("./QueryByOwner?json="+j);
+		window.location.assign("./QueryArticleByOwner?json="+j);
 	});
 }
 
@@ -2654,11 +2850,39 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset
 	
 	</div>`
 
-func (this *htmlArticles) QueryByOwner(w net_http.ResponseWriter, req *net_http.Request) {
-	w.Write([]byte(Header(`Articles`, `QueryByOwner`)))
+func (this *htmlArticles) QueryArticleByOwner(w net_http.ResponseWriter, req *net_http.Request) {
+	w.Write([]byte(Header(`Articles`, `QueryArticleByOwner`)))
 	jsonString := req.FormValue("json")
 	someValue := false
-	msg := &QueryByOwnerRequest{}
+	msg := &QueryArticleByOwnerRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -2670,9 +2894,9 @@ func (this *htmlArticles) QueryByOwner(w net_http.ResponseWriter, req *net_http.
 		}
 		someValue = true
 	}
-	w.Write([]byte(FormArticles_QueryByOwner))
+	w.Write([]byte(FormArticles_QueryArticleByOwner))
 	if someValue {
-		reply, err := this.client.QueryByOwner(golang_org_x_net_context.Background(), msg)
+		reply, err := this.client.QueryArticleByOwner(golang_org_x_net_context.Background(), msg)
 		if err != nil {
 			if err != io.EOF {
 				w.Write([]byte("<div class=\"alert alert-danger\" role=\"alert\">" + err.Error() + "</div>"))
@@ -2693,12 +2917,12 @@ func (this *htmlArticles) QueryByOwner(w net_http.ResponseWriter, req *net_http.
 	w.Write([]byte(Footer))
 }
 
-var FormArticles_QueryByOwnerCategory string = `<div class="container"><div class="jumbotron">
-	<h3>Articles: QueryByOwnerCategory</h3>
+var FormArticles_QueryArticleByOwnerCategory string = `<div class="container"><div class="jumbotron">
+	<h3>Articles: QueryArticleByOwnerCategory</h3>
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -2771,15 +2995,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -3074,18 +3320,18 @@ function setRepStrValue(value) {
 	return "value=" + JSON.stringify(HTMLEncode(decode_utf8(value)));
 }
 
-var nodeFactory = {"QueryByOwnerCategoryRequest_RootKeyword": buildQueryByOwnerCategoryRequest_RootKeyword(emptyIfNull(null)),}
-	function buildQueryByOwnerCategoryRequest_RootKeyword(json) {
+var nodeFactory = {"QueryArticleByOwnerCategoryRequest_RootKeyword": buildQueryArticleByOwnerCategoryRequest_RootKeyword(emptyIfNull(null)),}
+	function buildQueryArticleByOwnerCategoryRequest_RootKeyword(json) {
 if (json == undefined) {
 		return "";
 	}
 	
-var s = '<div class="node" type="QueryByOwnerCategoryRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="number" step="1" '+setValue(0, json["OwnerCategory"])+'/></div></div>';
+var s = '<div class="node" type="QueryArticleByOwnerCategoryRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="text" '+setStrValue("", json["OwnerCategory"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Limit: </label><div class="col-sm-10"><input class="form-control" name="Limit" type="number" step="1" '+setValue(0, json["Limit"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Limit: </label><div class="col-sm-10"><input class="form-control" name="Limit" type="text" '+setStrValue("", json["Limit"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset: </label><div class="col-sm-10"><input class="form-control" name="Offset" type="number" step="1" '+setValue(0, json["Offset"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset: </label><div class="col-sm-10"><input class="form-control" name="Offset" type="text" '+setStrValue("", json["Offset"])+'/></div></div>';
 				
 
 			s += '</div>';
@@ -3093,20 +3339,20 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset
 			activateLinks(node);
 			return node;
 		}function init() {
-	var root = $(nodeFactory["QueryByOwnerCategoryRequest_RootKeyword"]);
+	var root = $(nodeFactory["QueryArticleByOwnerCategoryRequest_RootKeyword"]);
 	var jsonText = getUrlParameter("json");
 	if (jsonText == undefined) {
 		var json = emptyIfNull(null);
 	} else {
 		var json = JSON.parse(unescape(jsonText));
 	}
-	$("#form > .children").html(buildQueryByOwnerCategoryRequest_RootKeyword(json));
+	$("#form > .children").html(buildQueryArticleByOwnerCategoryRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
-		window.location.assign("./QueryByOwnerCategory?json="+j);
+		window.location.assign("./QueryArticleByOwnerCategory?json="+j);
 	});
 }
 
@@ -3164,11 +3410,39 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset
 	
 	</div>`
 
-func (this *htmlArticles) QueryByOwnerCategory(w net_http.ResponseWriter, req *net_http.Request) {
-	w.Write([]byte(Header(`Articles`, `QueryByOwnerCategory`)))
+func (this *htmlArticles) QueryArticleByOwnerCategory(w net_http.ResponseWriter, req *net_http.Request) {
+	w.Write([]byte(Header(`Articles`, `QueryArticleByOwnerCategory`)))
 	jsonString := req.FormValue("json")
 	someValue := false
-	msg := &QueryByOwnerCategoryRequest{}
+	msg := &QueryArticleByOwnerCategoryRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -3180,9 +3454,9 @@ func (this *htmlArticles) QueryByOwnerCategory(w net_http.ResponseWriter, req *n
 		}
 		someValue = true
 	}
-	w.Write([]byte(FormArticles_QueryByOwnerCategory))
+	w.Write([]byte(FormArticles_QueryArticleByOwnerCategory))
 	if someValue {
-		reply, err := this.client.QueryByOwnerCategory(golang_org_x_net_context.Background(), msg)
+		reply, err := this.client.QueryArticleByOwnerCategory(golang_org_x_net_context.Background(), msg)
 		if err != nil {
 			if err != io.EOF {
 				w.Write([]byte("<div class=\"alert alert-danger\" role=\"alert\">" + err.Error() + "</div>"))
@@ -3208,7 +3482,7 @@ var FormArticles_QueryLabelByID string = `<div class="container"><div class="jum
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -3281,15 +3555,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -3591,7 +3887,7 @@ if (json == undefined) {
 	}
 	
 var s = '<div class="node" type="QueryLabelByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 
 			s += '</div>';
@@ -3608,7 +3904,7 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </
 	}
 	$("#form > .children").html(buildQueryLabelByIDRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
@@ -3675,6 +3971,34 @@ func (this *htmlArticles) QueryLabelByID(w net_http.ResponseWriter, req *net_htt
 	jsonString := req.FormValue("json")
 	someValue := false
 	msg := &QueryLabelByIDRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -3714,7 +4038,7 @@ var FormArticles_UpdateLabelByID string = `<div class="container"><div class="ju
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -3787,15 +4111,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -4103,7 +4449,7 @@ s += '<a href="#" class="del-child btn btn-danger btn-xs" role="button" fieldnam
 s += '</div><div class="col-sm-10">'
 s += '<label class="heading">Data</label>'
 s += '</div></div>'
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Type: </label><div class="col-sm-10"><input class="form-control" name="Type" type="text" '+setStrValue("", json["Type"])+'/></div></div>';
 				
@@ -4111,7 +4457,7 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">State:
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Value: </label><div class="col-sm-10"><input class="form-control" name="Value" type="text" '+setStrValue("", json["Value"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="number" step="1" '+setValue(0, json["Owner"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="text" '+setStrValue("", json["Owner"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">CreateTime: </label><div class="col-sm-10"><input class="form-control" name="CreateTime" type="text" '+setStrValue("", json["CreateTime"])+'/></div></div>';
 				
@@ -4128,7 +4474,7 @@ if (json == undefined) {
 	}
 	
 var s = '<div class="node" type="UpdateLabelByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 s += '<div class="children" type="Label_Data">' + buildLabel_Data(json["Data"]);
 			s += '</div>';
@@ -4149,7 +4495,7 @@ s += '<div class="children" type="Label_Data">' + buildLabel_Data(json["Data"]);
 	}
 	$("#form > .children").html(buildUpdateLabelByIDRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
@@ -4216,6 +4562,34 @@ func (this *htmlArticles) UpdateLabelByID(w net_http.ResponseWriter, req *net_ht
 	jsonString := req.FormValue("json")
 	someValue := false
 	msg := &UpdateLabelByIDRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -4255,7 +4629,7 @@ var FormArticles_DeleteLabelByID string = `<div class="container"><div class="ju
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -4328,15 +4702,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -4638,7 +5034,7 @@ if (json == undefined) {
 	}
 	
 var s = '<div class="node" type="DeleteLabelByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 
 			s += '</div>';
@@ -4655,7 +5051,7 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </
 	}
 	$("#form > .children").html(buildDeleteLabelByIDRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
@@ -4722,6 +5118,34 @@ func (this *htmlArticles) DeleteLabelByID(w net_http.ResponseWriter, req *net_ht
 	jsonString := req.FormValue("json")
 	someValue := false
 	msg := &DeleteLabelByIDRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -4761,7 +5185,7 @@ var FormArticles_QueryLabelByOwner string = `<div class="container"><div class="
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -4834,15 +5258,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -5144,11 +5590,11 @@ if (json == undefined) {
 	}
 	
 var s = '<div class="node" type="QueryLabelByOwnerRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="number" step="1" '+setValue(0, json["Owner"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="text" '+setStrValue("", json["Owner"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Limit: </label><div class="col-sm-10"><input class="form-control" name="Limit" type="number" step="1" '+setValue(0, json["Limit"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Limit: </label><div class="col-sm-10"><input class="form-control" name="Limit" type="text" '+setStrValue("", json["Limit"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset: </label><div class="col-sm-10"><input class="form-control" name="Offset" type="number" step="1" '+setValue(0, json["Offset"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset: </label><div class="col-sm-10"><input class="form-control" name="Offset" type="text" '+setStrValue("", json["Offset"])+'/></div></div>';
 				
 
 			s += '</div>';
@@ -5165,7 +5611,7 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset
 	}
 	$("#form > .children").html(buildQueryLabelByOwnerRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
@@ -5232,6 +5678,34 @@ func (this *htmlArticles) QueryLabelByOwner(w net_http.ResponseWriter, req *net_
 	jsonString := req.FormValue("json")
 	someValue := false
 	msg := &QueryLabelByOwnerRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -5271,7 +5745,7 @@ var FormArticles_CreateLabelByOwner string = `<div class="container"><div class=
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -5344,15 +5818,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -5660,7 +6156,7 @@ s += '<a href="#" class="del-child btn btn-danger btn-xs" role="button" fieldnam
 s += '</div><div class="col-sm-10">'
 s += '<label class="heading">Label</label>'
 s += '</div></div>'
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Type: </label><div class="col-sm-10"><input class="form-control" name="Type" type="text" '+setStrValue("", json["Type"])+'/></div></div>';
 				
@@ -5668,7 +6164,7 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">State:
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Value: </label><div class="col-sm-10"><input class="form-control" name="Value" type="text" '+setStrValue("", json["Value"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="number" step="1" '+setValue(0, json["Owner"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="text" '+setStrValue("", json["Owner"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">CreateTime: </label><div class="col-sm-10"><input class="form-control" name="CreateTime" type="text" '+setStrValue("", json["CreateTime"])+'/></div></div>';
 				
@@ -5685,7 +6181,7 @@ if (json == undefined) {
 	}
 	
 var s = '<div class="node" type="CreateLabelByOwnerRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="number" step="1" '+setValue(0, json["Owner"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="text" '+setStrValue("", json["Owner"])+'/></div></div>';
 				
 s += '<div class="children" type="Label_Label">' + buildLabel_Label(json["Label"]);
 			s += '</div>';
@@ -5706,7 +6202,7 @@ s += '<div class="children" type="Label_Label">' + buildLabel_Label(json["Label"
 	}
 	$("#form > .children").html(buildCreateLabelByOwnerRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
@@ -5773,6 +6269,34 @@ func (this *htmlArticles) CreateLabelByOwner(w net_http.ResponseWriter, req *net
 	jsonString := req.FormValue("json")
 	someValue := false
 	msg := &CreateLabelByOwnerRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -5812,7 +6336,7 @@ var FormArticles_CreateCategory string = `<div class="container"><div class="jum
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -5885,15 +6409,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -6188,50 +6734,23 @@ function setRepStrValue(value) {
 	return "value=" + JSON.stringify(HTMLEncode(decode_utf8(value)));
 }
 
-var nodeFactory = {"CreateCategoryRequest_RootKeyword": buildCreateCategoryRequest_RootKeyword(emptyIfNull(null)),
-"Category_Category": buildCategory_Category(emptyIfNull(null)),}
-	function buildCategory_Category(json) {
-if (json == undefined) {
-		return "";
-	}
-	
-var s = '<div class="node" type="Category_Category" fieldname="Category" repeated="false">';
-s += '<div class="row"><div class="col-sm-2">'
-s += '<a href="#" class="del-child btn btn-danger btn-xs" role="button" fieldname="Category">Remove</a>'
-s += '</div><div class="col-sm-10">'
-s += '<label class="heading">Category</label>'
-s += '</div></div>'
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
-				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Type: </label><div class="col-sm-10"><input class="form-control" name="Type" type="text" '+setStrValue("", json["Type"])+'/></div></div>';
-				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Name: </label><div class="col-sm-10"><input class="form-control" name="Name" type="text" '+setStrValue("", json["Name"])+'/></div></div>';
-				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="number" step="1" '+setValue(0, json["Owner"])+'/></div></div>';
-				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">State: </label><div class="col-sm-10"><input class="form-control" name="State" type="text" '+setStrValue("", json["State"])+'/></div></div>';
-				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">CreateTime: </label><div class="col-sm-10"><input class="form-control" name="CreateTime" type="text" '+setStrValue("", json["CreateTime"])+'/></div></div>';
-				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">UpdateTime: </label><div class="col-sm-10"><input class="form-control" name="UpdateTime" type="text" '+setStrValue("", json["UpdateTime"])+'/></div></div>';
-				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="number" step="1" '+setValue(0, json["OwnerCategory"])+'/></div></div>';
-				
-
-		s += '</div>';
-		return s;
-		}
-
-function buildCreateCategoryRequest_RootKeyword(json) {
+var nodeFactory = {"CreateCategoryRequest_RootKeyword": buildCreateCategoryRequest_RootKeyword(emptyIfNull(null)),}
+	function buildCreateCategoryRequest_RootKeyword(json) {
 if (json == undefined) {
 		return "";
 	}
 	
 var s = '<div class="node" type="CreateCategoryRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="children" type="Category_Category">' + buildCategory_Category(json["Category"]);
-			s += '</div>';
-		s += setLink(json, "Category_Category", "Category", "");
-		
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Type: </label><div class="col-sm-10"><input class="form-control" name="Type" type="text" '+setStrValue("", json["Type"])+'/></div></div>';
+				
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Name: </label><div class="col-sm-10"><input class="form-control" name="Name" type="text" '+setStrValue("", json["Name"])+'/></div></div>';
+				
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="text" '+setStrValue("", json["Owner"])+'/></div></div>';
+				
+s += '<div class="field form-group"><label class="col-sm-2 control-label">State: </label><div class="col-sm-10"><input class="form-control" name="State" type="text" '+setStrValue("", json["State"])+'/></div></div>';
+				
+s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="text" '+setStrValue("", json["OwnerCategory"])+'/></div></div>';
+				
 
 			s += '</div>';
 			var node = $(s);
@@ -6247,7 +6766,7 @@ s += '<div class="children" type="Category_Category">' + buildCategory_Category(
 	}
 	$("#form > .children").html(buildCreateCategoryRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
@@ -6314,6 +6833,34 @@ func (this *htmlArticles) CreateCategory(w net_http.ResponseWriter, req *net_htt
 	jsonString := req.FormValue("json")
 	someValue := false
 	msg := &CreateCategoryRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -6353,7 +6900,7 @@ var FormArticles_UpdateCategoryByID string = `<div class="container"><div class=
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -6426,15 +6973,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -6742,13 +7311,13 @@ s += '<a href="#" class="del-child btn btn-danger btn-xs" role="button" fieldnam
 s += '</div><div class="col-sm-10">'
 s += '<label class="heading">Data</label>'
 s += '</div></div>'
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Type: </label><div class="col-sm-10"><input class="form-control" name="Type" type="text" '+setStrValue("", json["Type"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">Name: </label><div class="col-sm-10"><input class="form-control" name="Name" type="text" '+setStrValue("", json["Name"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="number" step="1" '+setValue(0, json["Owner"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="text" '+setStrValue("", json["Owner"])+'/></div></div>';
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">State: </label><div class="col-sm-10"><input class="form-control" name="State" type="text" '+setStrValue("", json["State"])+'/></div></div>';
 				
@@ -6756,7 +7325,7 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">Create
 				
 s += '<div class="field form-group"><label class="col-sm-2 control-label">UpdateTime: </label><div class="col-sm-10"><input class="form-control" name="UpdateTime" type="text" '+setStrValue("", json["UpdateTime"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="number" step="1" '+setValue(0, json["OwnerCategory"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="text" '+setStrValue("", json["OwnerCategory"])+'/></div></div>';
 				
 
 		s += '</div>';
@@ -6769,7 +7338,7 @@ if (json == undefined) {
 	}
 	
 var s = '<div class="node" type="UpdateCategoryByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 s += '<div class="children" type="Category_Data">' + buildCategory_Data(json["Data"]);
 			s += '</div>';
@@ -6790,7 +7359,7 @@ s += '<div class="children" type="Category_Data">' + buildCategory_Data(json["Da
 	}
 	$("#form > .children").html(buildUpdateCategoryByIDRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
@@ -6857,6 +7426,34 @@ func (this *htmlArticles) UpdateCategoryByID(w net_http.ResponseWriter, req *net
 	jsonString := req.FormValue("json")
 	someValue := false
 	msg := &UpdateCategoryByIDRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -6896,7 +7493,7 @@ var FormArticles_DeleteCategoryByID string = `<div class="container"><div class=
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -6969,15 +7566,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -7279,7 +7898,7 @@ if (json == undefined) {
 	}
 	
 var s = '<div class="node" type="DeleteCategoryByIDRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="number" step="1" '+setValue(0, json["ID"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </label><div class="col-sm-10"><input class="form-control" name="ID" type="text" '+setStrValue("", json["ID"])+'/></div></div>';
 				
 
 			s += '</div>';
@@ -7296,7 +7915,7 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">ID: </
 	}
 	$("#form > .children").html(buildDeleteCategoryByIDRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
@@ -7363,6 +7982,34 @@ func (this *htmlArticles) DeleteCategoryByID(w net_http.ResponseWriter, req *net
 	jsonString := req.FormValue("json")
 	someValue := false
 	msg := &DeleteCategoryByIDRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -7402,7 +8049,7 @@ var FormArticles_QueryCategoryByOwner string = `<div class="container"><div clas
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -7475,15 +8122,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -7785,11 +8454,11 @@ if (json == undefined) {
 	}
 	
 var s = '<div class="node" type="QueryCategoryByOwnerRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="number" step="1" '+setValue(0, json["Owner"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Owner: </label><div class="col-sm-10"><input class="form-control" name="Owner" type="text" '+setStrValue("", json["Owner"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Limit: </label><div class="col-sm-10"><input class="form-control" name="Limit" type="number" step="1" '+setValue(0, json["Limit"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Limit: </label><div class="col-sm-10"><input class="form-control" name="Limit" type="text" '+setStrValue("", json["Limit"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset: </label><div class="col-sm-10"><input class="form-control" name="Offset" type="number" step="1" '+setValue(0, json["Offset"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset: </label><div class="col-sm-10"><input class="form-control" name="Offset" type="text" '+setStrValue("", json["Offset"])+'/></div></div>';
 				
 
 			s += '</div>';
@@ -7806,7 +8475,7 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset
 	}
 	$("#form > .children").html(buildQueryCategoryByOwnerRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
@@ -7873,6 +8542,34 @@ func (this *htmlArticles) QueryCategoryByOwner(w net_http.ResponseWriter, req *n
 	jsonString := req.FormValue("json")
 	someValue := false
 	msg := &QueryCategoryByOwnerRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {
@@ -7912,7 +8609,7 @@ var FormArticles_QueryCategoryByOwnerCategory string = `<div class="container"><
 	
 	<form class="form-horizontal">
 	<div id="form"><div class="children"></div></div>
-    <a href="#" id="submit" class="btn btn-primary" role="button">Submit</a>
+    <input type="submit" class="btn btn-primary" role="button" value="Submit">
     </form>
     
 	<script>
@@ -7985,15 +8682,37 @@ function addElem(ev) {
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
-    var sURLVariables = sPageURL.split('&');
-    for (var i = 0; i < sURLVariables.length; i++)
-    {
-        var sParameterName = sURLVariables[i].split('=');
-        if (sParameterName[0] == sParam)
-        {
-            return sParameterName[1];
-        }
+    return getJsonFromUrl("?"+sPageURL)[sParam];
+}
+
+// From: https://stackoverflow.com/a/8486188
+function getJsonFromUrl(url) {
+  if(!url) url = location.href;
+  var question = url.indexOf("?");
+  var hash = url.indexOf("#");
+  if(hash==-1 && question==-1) return {};
+  if(hash==-1) hash = url.length;
+  var query = question==-1 || hash==question+1 ? url.substring(hash) :
+  url.substring(question+1,hash);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    if(!part) return;
+    part = part.split("+").join(" "); // replace every + with space, regexp-free version
+    var eq = part.indexOf("=");
+    var key = eq>-1 ? part.substr(0,eq) : part;
+    var val = eq>-1 ? decodeURIComponent(part.substr(eq+1)) : "";
+    var from = key.indexOf("[");
+    if(from==-1) result[decodeURIComponent(key)] = val;
+    else {
+      var to = key.indexOf("]",from);
+      var index = decodeURIComponent(key.substring(from+1,to));
+      key = decodeURIComponent(key.substring(0,from));
+      if(!result[key]) result[key] = [];
+      if(!index) result[key].push(val);
+      else result[key][index] = val;
     }
+  });
+  return result;
 }
 
 function activateLinks(node) {
@@ -8295,11 +9014,11 @@ if (json == undefined) {
 	}
 	
 var s = '<div class="node" type="QueryCategoryByOwnerCategoryRequest_RootKeyword" fieldname="RootKeyword" repeated="false">';
-s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="number" step="1" '+setValue(0, json["OwnerCategory"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">OwnerCategory: </label><div class="col-sm-10"><input class="form-control" name="OwnerCategory" type="text" '+setStrValue("", json["OwnerCategory"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Limit: </label><div class="col-sm-10"><input class="form-control" name="Limit" type="number" step="1" '+setValue(0, json["Limit"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Limit: </label><div class="col-sm-10"><input class="form-control" name="Limit" type="text" '+setStrValue("", json["Limit"])+'/></div></div>';
 				
-s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset: </label><div class="col-sm-10"><input class="form-control" name="Offset" type="number" step="1" '+setValue(0, json["Offset"])+'/></div></div>';
+s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset: </label><div class="col-sm-10"><input class="form-control" name="Offset" type="text" '+setStrValue("", json["Offset"])+'/></div></div>';
 				
 
 			s += '</div>';
@@ -8316,7 +9035,7 @@ s += '<div class="field form-group"><label class="col-sm-2 control-label">Offset
 	}
 	$("#form > .children").html(buildQueryCategoryByOwnerCategoryRequest_RootKeyword(json));
 	activateLinks(root);
-	$("a[id=submit]").click(function(ev) {
+	$("form").submit(function(ev) {
 		ev.preventDefault();
 		c = getChildren($("#form"));
 		j = JSON.stringify(c["RootKeyword"]);
@@ -8383,6 +9102,34 @@ func (this *htmlArticles) QueryCategoryByOwnerCategory(w net_http.ResponseWriter
 	jsonString := req.FormValue("json")
 	someValue := false
 	msg := &QueryCategoryByOwnerCategoryRequest{}
+	validateMap := make(map[string]interface{})
+	err := encoding_json.Unmarshal([]byte(jsonString), &validateMap)
+	if err != nil {
+		log.Printf("[Parse Request]: %s ", err.Error())
+	}
+	if err == nil {
+		for k, v := range validateMap {
+			switch v.(type) {
+			case string:
+				vInt, err := strconv.ParseInt(v.(string), 10, 64)
+				if err != nil {
+					continue
+				}
+				validateMap[k] = vInt
+			case float64:
+				vInt := int(v.(float64))
+				if vInt > math.MaxInt32 {
+					vStr := strconv.Itoa(vInt)
+					validateMap[k] = vStr
+				}
+			}
+		}
+		jsonBytes, err := encoding_json.Marshal(validateMap)
+		if err != nil {
+			log.Printf("re-marshal failed: %s ", err.Error())
+		}
+		jsonString = string(jsonBytes)
+	}
 	if len(jsonString) > 0 {
 		err := encoding_json.Unmarshal([]byte(jsonString), msg)
 		if err != nil {

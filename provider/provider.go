@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/joho/godotenv"
-	"github.com/yinxulai/grpc-services/articles/models"
-	"github.com/yinxulai/grpc-services/articles/standard"
+	"github.com/yinxulai/grpc-module-articles/models"
+	"github.com/yinxulai/grpc-module-articles/standard"
 )
 
 // NewService NewService
@@ -19,18 +19,18 @@ func NewService() *Service {
 type Service struct {
 }
 
-// Create Create
-func (srv *Service) Create(ctx context.Context, req *standard.CreateRequest) (resp *standard.CreateResponse, err error) {
+// CreateArticle Create
+func (srv *Service) CreateArticle(ctx context.Context, req *standard.CreateArticleRequest) (resp *standard.CreateArticleResponse, err error) {
 	var count uint64
-	resp = new(standard.CreateResponse)
+	resp = new(standard.CreateArticleResponse)
 	// TODO: 检查分类是否存在
-	if req.Article.OwnerCategory == 0 {
+	if req.OwnerCategory == 0 {
 		resp.State = standard.State_PARAMS_INVALID
 		resp.Message = "无效的分类"
 		return resp, nil
 	}
 
-	err = countCategoryByIDStmt.GetContext(ctx, &count, map[string]interface{}{"ID": req.Article.OwnerCategory})
+	err = countCategoryByIDNamedStmt.GetContext(ctx, &count, map[string]interface{}{"ID": req.OwnerCategory})
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -44,7 +44,7 @@ func (srv *Service) Create(ctx context.Context, req *standard.CreateRequest) (re
 	}
 
 	// 执行
-	_, err = insertArticleStmt.ExecContext(ctx, req.Article)
+	_, err = insertArticleNamedStmt.ExecContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -57,10 +57,10 @@ func (srv *Service) Create(ctx context.Context, req *standard.CreateRequest) (re
 	return resp, nil
 }
 
-// QueryByID QueryByID
-func (srv *Service) QueryByID(ctx context.Context, req *standard.QueryByIDRequest) (resp *standard.QueryByIDResponse, err error) {
+// QueryArticleByID QueryArticleByID
+func (srv *Service) QueryArticleByID(ctx context.Context, req *standard.QueryArticleByIDRequest) (resp *standard.QueryArticleByIDResponse, err error) {
 	articles := []*models.Article{}
-	resp = new(standard.QueryByIDResponse)
+	resp = new(standard.QueryArticleByIDResponse)
 
 	if req.ID == 0 {
 		resp.State = standard.State_PARAMS_INVALID
@@ -68,7 +68,7 @@ func (srv *Service) QueryByID(ctx context.Context, req *standard.QueryByIDReques
 		return resp, nil
 	}
 
-	rows, err := queryArticleByIDStmt.QueryxContext(ctx, req)
+	rows, err := queryArticleByIDNamedStmt.QueryxContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -95,10 +95,10 @@ func (srv *Service) QueryByID(ctx context.Context, req *standard.QueryByIDReques
 	return resp, nil
 }
 
-// DeleteByID DeleteByID
-func (srv *Service) DeleteByID(ctx context.Context, req *standard.DeleteByIDRequest) (resp *standard.DeleteByIDResponse, err error) {
+// DeleteArticleByID DeleteArticleByID
+func (srv *Service) DeleteArticleByID(ctx context.Context, req *standard.DeleteArticleByIDRequest) (resp *standard.DeleteArticleByIDResponse, err error) {
 	var count uint64
-	resp = new(standard.DeleteByIDResponse)
+	resp = new(standard.DeleteArticleByIDResponse)
 
 	if req.ID == 0 {
 		resp.State = standard.State_PARAMS_INVALID
@@ -106,7 +106,7 @@ func (srv *Service) DeleteByID(ctx context.Context, req *standard.DeleteByIDRequ
 		return resp, nil
 	}
 
-	err = countArticleByIDStmt.GetContext(ctx, &count, req)
+	err = countArticleByIDNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -119,7 +119,7 @@ func (srv *Service) DeleteByID(ctx context.Context, req *standard.DeleteByIDRequ
 		return resp, nil
 	}
 
-	_, err = deleteArticleByIDStmt.ExecContext(ctx, req)
+	_, err = deleteArticleByIDNamedStmt.ExecContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -132,11 +132,11 @@ func (srv *Service) DeleteByID(ctx context.Context, req *standard.DeleteByIDRequ
 	return resp, nil
 }
 
-// UpdateByID UpdateByID
-func (srv *Service) UpdateByID(ctx context.Context, req *standard.UpdateByIDRequest) (resp *standard.UpdateByIDResponse, err error) {
+// UpdateArticleByID UpdateArticleByID
+func (srv *Service) UpdateArticleByID(ctx context.Context, req *standard.UpdateArticleByIDRequest) (resp *standard.UpdateArticleByIDResponse, err error) {
 	// 检查是否存在该记录
 	var count uint64
-	resp = new(standard.UpdateByIDResponse)
+	resp = new(standard.UpdateArticleByIDResponse)
 
 	if req.ID == 0 {
 		resp.State = standard.State_PARAMS_INVALID
@@ -144,7 +144,7 @@ func (srv *Service) UpdateByID(ctx context.Context, req *standard.UpdateByIDRequ
 		return resp, nil
 	}
 
-	err = countArticleByIDStmt.GetContext(ctx, &count, req)
+	err = countArticleByIDNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -158,7 +158,7 @@ func (srv *Service) UpdateByID(ctx context.Context, req *standard.UpdateByIDRequ
 	}
 
 	req.Data.ID = req.ID
-	_, err = updateArticleByIDStmt.ExecContext(ctx, req.Data)
+	_, err = updateArticleByIDNamedStmt.ExecContext(ctx, req.Data)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -171,12 +171,12 @@ func (srv *Service) UpdateByID(ctx context.Context, req *standard.UpdateByIDRequ
 	return resp, nil
 }
 
-// QueryByOwner QueryByOwner
-func (srv *Service) QueryByOwner(ctx context.Context, req *standard.QueryByOwnerRequest) (resp *standard.QueryByOwnerResponse, err error) {
+// QueryArticleByOwner QueryArticleByOwner
+func (srv *Service) QueryArticleByOwner(ctx context.Context, req *standard.QueryArticleByOwnerRequest) (resp *standard.QueryArticleByOwnerResponse, err error) {
 	var count uint64
 	articles := []*models.Article{}
 	stdarticles := []*standard.Article{}
-	resp = new(standard.QueryByOwnerResponse)
+	resp = new(standard.QueryArticleByOwnerResponse)
 	// 查询 Owner 文章是否存在
 
 	if req.Owner == 0 {
@@ -186,14 +186,14 @@ func (srv *Service) QueryByOwner(ctx context.Context, req *standard.QueryByOwner
 	}
 
 	// 查询记录总数
-	err = countArticleByOwnerStmt.GetContext(ctx, &count, req)
+	err = countArticleByOwnerNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
 		return resp, nil
 	}
 
-	rows, err := queryArticleByOwnerStmt.QueryxContext(ctx, req)
+	rows, err := queryArticleByOwnerNamedStmt.QueryxContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -220,13 +220,13 @@ func (srv *Service) QueryByOwner(ctx context.Context, req *standard.QueryByOwner
 	return resp, nil
 }
 
-// QueryByOwnerCategory QueryByOwnerCategory
-func (srv *Service) QueryByOwnerCategory(ctx context.Context, req *standard.QueryByOwnerCategoryRequest) (resp *standard.QueryByOwnerCategoryResponse, err error) {
+// QueryArticleByOwnerCategory QueryByOwnerCategory
+func (srv *Service) QueryArticleByOwnerCategory(ctx context.Context, req *standard.QueryArticleByOwnerCategoryRequest) (resp *standard.QueryArticleByOwnerCategoryResponse, err error) {
 	// 检查是否存在该记录
 	var count uint64
 	articles := []*models.Article{}
 	stdarticles := []*standard.Article{}
-	resp = new(standard.QueryByOwnerCategoryResponse)
+	resp = new(standard.QueryArticleByOwnerCategoryResponse)
 
 	// 简单检查一下分类
 	if req.OwnerCategory == 0 {
@@ -236,7 +236,7 @@ func (srv *Service) QueryByOwnerCategory(ctx context.Context, req *standard.Quer
 	}
 
 	// 查询 Category 是否存在
-	err = countCategoryByIDStmt.GetContext(ctx, &count, map[string]interface{}{"ID": req.OwnerCategory})
+	err = countCategoryByIDNamedStmt.GetContext(ctx, &count, map[string]interface{}{"ID": req.OwnerCategory})
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -250,7 +250,7 @@ func (srv *Service) QueryByOwnerCategory(ctx context.Context, req *standard.Quer
 	}
 
 	// 查询记录总数
-	err = countArticleByOwnerCategoryStmt.GetContext(ctx, &count, req)
+	err = countArticleByOwnerCategoryNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -258,7 +258,7 @@ func (srv *Service) QueryByOwnerCategory(ctx context.Context, req *standard.Quer
 	}
 
 	// 执行条件查询
-	rows, err := queryArticleByOwnerCategoryStmt.QueryxContext(ctx, req)
+	rows, err := queryArticleByOwnerCategoryNamedStmt.QueryxContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -289,7 +289,7 @@ func (srv *Service) QueryLabelByID(ctx context.Context, req *standard.QueryLabel
 	labels := []*models.Label{}
 	resp = new(standard.QueryLabelByIDResponse)
 
-	rows, err := queryLabelByIDStmt.QueryxContext(ctx, req)
+	rows, err := queryLabelByIDNamedStmt.QueryxContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -329,7 +329,7 @@ func (srv *Service) UpdateLabelByID(ctx context.Context, req *standard.UpdateLab
 		return resp, nil
 	}
 
-	err = countLabelByIDStmt.GetContext(ctx, &count, req)
+	err = countLabelByIDNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -343,7 +343,7 @@ func (srv *Service) UpdateLabelByID(ctx context.Context, req *standard.UpdateLab
 	}
 
 	req.Data.ID = req.ID
-	_, err = updateLabelByIDStmt.ExecContext(ctx, req.Data)
+	_, err = updateLabelByIDNamedStmt.ExecContext(ctx, req.Data)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -368,7 +368,7 @@ func (srv *Service) DeleteLabelByID(ctx context.Context, req *standard.DeleteLab
 		return resp, nil
 	}
 
-	err = countLabelByIDStmt.GetContext(ctx, &count, req)
+	err = countLabelByIDNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -381,7 +381,7 @@ func (srv *Service) DeleteLabelByID(ctx context.Context, req *standard.DeleteLab
 		return resp, nil
 	}
 
-	_, err = deleteLabelByIDStmt.ExecContext(ctx, req)
+	_, err = deleteLabelByIDNamedStmt.ExecContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -406,7 +406,7 @@ func (srv *Service) CreateLabelByOwner(ctx context.Context, req *standard.Create
 		return resp, nil
 	}
 
-	err = countArticleByIDStmt.GetContext(ctx, &count, map[string]interface{}{"ID": req.Owner})
+	err = countArticleByIDNamedStmt.GetContext(ctx, &count, map[string]interface{}{"ID": req.Owner})
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -420,7 +420,7 @@ func (srv *Service) CreateLabelByOwner(ctx context.Context, req *standard.Create
 	}
 
 	req.Label.Owner = req.Owner
-	_, err = insertLabelStmt.ExecContext(ctx, req.Label)
+	_, err = insertLabelNamedStmt.ExecContext(ctx, req.Label)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -448,7 +448,7 @@ func (srv *Service) QueryLabelByOwner(ctx context.Context, req *standard.QueryLa
 		return resp, nil
 	}
 
-	err = countArticleByIDStmt.GetContext(ctx, &count, map[string]interface{}{"ID": req.Owner})
+	err = countArticleByIDNamedStmt.GetContext(ctx, &count, map[string]interface{}{"ID": req.Owner})
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -462,14 +462,14 @@ func (srv *Service) QueryLabelByOwner(ctx context.Context, req *standard.QueryLa
 	}
 
 	// 查询记录总数
-	err = countLabelByOwnerStmt.GetContext(ctx, &count, req)
+	err = countLabelByOwnerNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
 		return resp, nil
 	}
 
-	rows, err := queryLabelByOwnerStmt.QueryxContext(ctx, req)
+	rows, err := queryLabelByOwnerNamedStmt.QueryxContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -500,7 +500,7 @@ func (srv *Service) QueryLabelByOwner(ctx context.Context, req *standard.QueryLa
 func (srv *Service) CreateCategory(ctx context.Context, req *standard.CreateCategoryRequest) (resp *standard.CreateCategoryResponse, err error) {
 	resp = new(standard.CreateCategoryResponse)
 	// 执行
-	_, err = insertCategoryStmt.ExecContext(ctx, req.Category)
+	_, err = insertCategoryNamedStmt.ExecContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -525,7 +525,7 @@ func (srv *Service) UpdateCategoryByID(ctx context.Context, req *standard.Update
 		return resp, nil
 	}
 
-	err = countCategoryByIDStmt.GetContext(ctx, &count, req)
+	err = countCategoryByIDNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -539,7 +539,7 @@ func (srv *Service) UpdateCategoryByID(ctx context.Context, req *standard.Update
 	}
 
 	req.Data.ID = req.ID
-	_, err = updateCategoryByIDStmt.ExecContext(ctx, req.Data)
+	_, err = updateCategoryByIDNamedStmt.ExecContext(ctx, req.Data)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -564,7 +564,7 @@ func (srv *Service) DeleteCategoryByID(ctx context.Context, req *standard.Delete
 		return resp, nil
 	}
 
-	err = countCategoryByIDStmt.GetContext(ctx, &count, req)
+	err = countCategoryByIDNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -578,7 +578,7 @@ func (srv *Service) DeleteCategoryByID(ctx context.Context, req *standard.Delete
 	}
 
 	// TODO: 检查 该分类 下的文章以及子分类
-	_, err = deleteCategoryByIDStmt.ExecContext(ctx, req)
+	_, err = deleteCategoryByIDNamedStmt.ExecContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -598,14 +598,14 @@ func (srv *Service) QueryCategoryByOwner(ctx context.Context, req *standard.Quer
 	stdcategorys := []*standard.Category{}
 	resp = new(standard.QueryCategoryByOwnerResponse)
 
-	err = countCategoryByOwnerStmt.GetContext(ctx, &count, req)
+	err = countCategoryByOwnerNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
 		return resp, nil
 	}
 
-	rows, err := queryCategoryByOwnerStmt.QueryxContext(ctx, req)
+	rows, err := queryCategoryByOwnerNamedStmt.QueryxContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
@@ -640,14 +640,14 @@ func (srv *Service) QueryCategoryByOwnerCategory(ctx context.Context, req *stand
 	resp = new(standard.QueryCategoryByOwnerCategoryResponse)
 
 	// TODO: 查询父分类是否存在
-	err = countCategoryByOwnerCategoryStmt.GetContext(ctx, &count, req)
+	err = countCategoryByOwnerCategoryNamedStmt.GetContext(ctx, &count, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()
 		return resp, nil
 	}
 
-	rows, err := queryCategoryByOwnerCategoryStmt.QueryxContext(ctx, req)
+	rows, err := queryCategoryByOwnerCategoryNamedStmt.QueryxContext(ctx, req)
 	if err != nil {
 		resp.State = standard.State_DB_OPERATION_FATLURE
 		resp.Message = err.Error()

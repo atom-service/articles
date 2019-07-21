@@ -1,6 +1,6 @@
 package models
 
-import "github.com/yinxulai/grpc-services/articles/standard"
+import "github.com/yinxulai/grpc-module-articles/standard"
 
 // Category 用户
 type Category struct {

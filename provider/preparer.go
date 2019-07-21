@@ -14,34 +14,34 @@ var (
 	createCategoryTableStmt *sqlx.Stmt
 	createLabelTableStmt    *sqlx.Stmt
 
-	insertArticleStmt  *sqlx.NamedStmt // 插入一条文章
-	insertLabelStmt    *sqlx.NamedStmt // 插入一条标签
-	insertCategoryStmt *sqlx.NamedStmt // 插入一条分类
+	insertLabelNamedStmt    *sqlx.NamedStmt // 插入一条标签
+	insertArticleNamedStmt  *sqlx.NamedStmt // 插入一条文章
+	insertCategoryNamedStmt *sqlx.NamedStmt // 插入一条分类
 
-	updateArticleByIDStmt  *sqlx.NamedStmt // 根据 ID 更新文章
-	updateLabelByIDStmt    *sqlx.NamedStmt // 使用 ID 更新 标签
-	updateCategoryByIDStmt *sqlx.NamedStmt //  通过 ID 更新分类信息
+	updateLabelByIDNamedStmt    *sqlx.NamedStmt // 使用 ID 更新 标签
+	updateArticleByIDNamedStmt  *sqlx.NamedStmt // 根据 ID 更新文章
+	updateCategoryByIDNamedStmt *sqlx.NamedStmt //  通过 ID 更新分类信息
 
-	countArticleByIDStmt             *sqlx.NamedStmt // 根据 ID 统计文章
-	countArticleByOwnerStmt          *sqlx.NamedStmt
-	countCategoryByIDStmt            *sqlx.NamedStmt // 使用 ID 统计分类
-	countLabelByIDStmt               *sqlx.NamedStmt // 使用 ID 统计 标签
-	countArticleByOwnerCategoryStmt  *sqlx.NamedStmt
-	countLabelByOwnerStmt            *sqlx.NamedStmt
-	countCategoryByOwnerStmt         *sqlx.NamedStmt
-	countCategoryByOwnerCategoryStmt *sqlx.NamedStmt
+	countLabelByIDNamedStmt               *sqlx.NamedStmt // 使用 ID 统计 标签
+	countArticleByIDNamedStmt             *sqlx.NamedStmt // 根据 ID 统计文章
+	countLabelByOwnerNamedStmt            *sqlx.NamedStmt
+	countCategoryByIDNamedStmt            *sqlx.NamedStmt // 使用 ID 统计分类
+	countArticleByOwnerNamedStmt          *sqlx.NamedStmt
+	countCategoryByOwnerNamedStmt         *sqlx.NamedStmt
+	countArticleByOwnerCategoryNamedStmt  *sqlx.NamedStmt
+	countCategoryByOwnerCategoryNamedStmt *sqlx.NamedStmt
 
-	queryArticleByIDStmt             *sqlx.NamedStmt // 使用 ID 查询文章
-	queryArticleByOwnerStmt          *sqlx.NamedStmt
-	queryArticleByOwnerCategoryStmt  *sqlx.NamedStmt // 查询分类下的所有文章
-	queryLabelByIDStmt               *sqlx.NamedStmt // 使用 ID 查询 标签
-	queryLabelByOwnerStmt            *sqlx.NamedStmt // 插入一条标签
-	queryCategoryByOwnerStmt         *sqlx.NamedStmt // 通过 Owner 查询
-	queryCategoryByOwnerCategoryStmt *sqlx.NamedStmt // 通过 OwnerCategory 查询
+	queryLabelByIDNamedStmt               *sqlx.NamedStmt // 使用 ID 查询 标签
+	queryArticleByIDNamedStmt             *sqlx.NamedStmt // 使用 ID 查询文章
+	queryLabelByOwnerNamedStmt            *sqlx.NamedStmt // 插入一条标签
+	queryArticleByOwnerNamedStmt          *sqlx.NamedStmt
+	queryCategoryByOwnerNamedStmt         *sqlx.NamedStmt // 通过 Owner 查询
+	queryArticleByOwnerCategoryNamedStmt  *sqlx.NamedStmt // 查询分类下的所有文章
+	queryCategoryByOwnerCategoryNamedStmt *sqlx.NamedStmt // 通过 OwnerCategory 查询
 
-	deleteArticleByIDStmt  *sqlx.NamedStmt // 删除文章
-	deleteLabelByIDStmt    *sqlx.NamedStmt // 使用 ID 删除 标签
-	deleteCategoryByIDStmt *sqlx.NamedStmt //  通过 ID 删除分类信息
+	deleteLabelByIDNamedStmt    *sqlx.NamedStmt // 使用 ID 删除 标签
+	deleteArticleByIDNamedStmt  *sqlx.NamedStmt // 删除文章
+	deleteCategoryByIDNamedStmt *sqlx.NamedStmt //  通过 ID 删除分类信息
 )
 
 func init() {
@@ -119,7 +119,7 @@ func init() {
 	}
 
 	// 插入一条文章
-	insertArticleStmt = MustPreparexNamed(
+	insertArticleNamedStmt = MustPreparexNamed(
 		database,
 		"INSERT INTO `articles`",
 		" (`Type`, `Title`,	`Owner`,	`State`,	`Cover`,	`Summary`,	`Context`,	`OwnerCategory`)",
@@ -128,14 +128,14 @@ func init() {
 		" ;",
 	)
 	// 通过 ID 查询指定文章
-	queryArticleByIDStmt = MustPreparexNamed(
+	queryArticleByIDNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT * FROM `articles`",
 		" WHERE `ID` = :ID",
 		" ;",
 	)
 	// 根据 id 统计文章
-	countArticleByIDStmt = MustPreparexNamed(
+	countArticleByIDNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT COUNT(*) FROM `articles`",
 		" WHERE `ID` = :ID",
@@ -143,7 +143,7 @@ func init() {
 	)
 
 	// 通过 Owner 查询指定文章
-	queryArticleByOwnerStmt = MustPreparexNamed(
+	queryArticleByOwnerNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT * FROM `articles`",
 		" WHERE `Owner` = :Owner",
@@ -152,7 +152,7 @@ func init() {
 		" ;",
 	)
 	// 根据 Owner 统计文章
-	countArticleByOwnerStmt = MustPreparexNamed(
+	countArticleByOwnerNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT COUNT(*) FROM `articles`",
 		" WHERE `Owner` = :Owner",
@@ -160,14 +160,14 @@ func init() {
 	)
 
 	// 删除文章
-	deleteArticleByIDStmt = MustPreparexNamed(
+	deleteArticleByIDNamedStmt = MustPreparexNamed(
 		database,
 		" DELETE FROM `articles`",
 		" WHERE `ID` = :ID",
 		" ;",
 	)
 	// 根据 ID 更新文章
-	updateArticleByIDStmt = MustPreparexNamed(
+	updateArticleByIDNamedStmt = MustPreparexNamed(
 		database,
 		" UPDATE `articles` SET",
 		" `Type` = :Type,",
@@ -182,7 +182,7 @@ func init() {
 		" ;",
 	)
 
-	countArticleByOwnerCategoryStmt = MustPreparexNamed(
+	countArticleByOwnerCategoryNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT COUNT(*) FROM `articles`",
 		" WHERE `OwnerCategory` = :OwnerCategory",
@@ -190,7 +190,7 @@ func init() {
 	)
 
 	// 查询分类下的所有文章
-	queryArticleByOwnerCategoryStmt = MustPreparexNamed(
+	queryArticleByOwnerCategoryNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT * FROM `articles`",
 		" WHERE `OwnerCategory` = :OwnerCategory",
@@ -199,28 +199,28 @@ func init() {
 		" ;",
 	)
 	// 使用 ID 统计分类
-	countCategoryByIDStmt = MustPreparexNamed(
+	countCategoryByIDNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT COUNT(*) FROM `categorys`",
 		" WHERE `ID` = :ID",
 		" ;",
 	)
 	// 通过 ID 查询标签
-	queryLabelByIDStmt = MustPreparexNamed(
+	queryLabelByIDNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT * FROM `labels`",
 		" WHERE `ID` = :ID",
 		" ;",
 	)
 	// 通过 ID 更新标签
-	queryLabelByIDStmt = MustPreparexNamed(
+	queryLabelByIDNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT * FROM `labels`",
 		" WHERE `ID` = :ID",
 		" ;",
 	)
 
-	countLabelByOwnerStmt = MustPreparexNamed(
+	countLabelByOwnerNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT COUNT(*) FROM `labels`",
 		" WHERE `Owner` = :Owner",
@@ -228,7 +228,7 @@ func init() {
 	)
 
 	// 通过 Owner 更新标签
-	queryLabelByOwnerStmt = MustPreparexNamed(
+	queryLabelByOwnerNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT * FROM `labels`",
 		" WHERE `Owner` = :Owner",
@@ -237,7 +237,7 @@ func init() {
 		" ;",
 	)
 	// 通过 ID 更新标签
-	updateLabelByIDStmt = MustPreparexNamed(
+	updateLabelByIDNamedStmt = MustPreparexNamed(
 		database,
 		" UPDATE `labels` SET",
 		" `Type` = :Type,",
@@ -248,21 +248,21 @@ func init() {
 		" ;",
 	)
 	// 使用 ID 统计标签
-	countLabelByIDStmt = MustPreparexNamed(
+	countLabelByIDNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT COUNT(*) FROM `labels`",
 		" WHERE `ID` = :ID",
 		" ;",
 	)
 	// 使用 ID 删除标签
-	deleteLabelByIDStmt = MustPreparexNamed(
+	deleteLabelByIDNamedStmt = MustPreparexNamed(
 		database,
 		" DELETE FROM `labels`",
 		" WHERE`ID` = :ID",
 		" ;",
 	)
 	// 插入一条 label
-	insertLabelStmt = MustPreparexNamed(
+	insertLabelNamedStmt = MustPreparexNamed(
 		database,
 		" INSERT INTO `labels`",
 		" (`Type`, `State`, `Value`, `Owner`)",
@@ -271,7 +271,7 @@ func init() {
 		" ;",
 	)
 	// 插入一条分类
-	insertCategoryStmt = MustPreparexNamed(
+	insertCategoryNamedStmt = MustPreparexNamed(
 		database,
 		" INSERT INTO `categorys`",
 		" (`Type`, `Name`, `Owner`, `State`, `OwnerCategory`)",
@@ -281,7 +281,7 @@ func init() {
 	) // 插入一条分类
 
 	// 通过 所属 查询 分类
-	countCategoryByOwnerStmt = MustPreparexNamed(
+	countCategoryByOwnerNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT COUNT(*) FROM `categorys`",
 		" WHERE `Owner` = :Owner",
@@ -289,7 +289,7 @@ func init() {
 	) // 通过 Owner 查询
 
 	// 通过 所属 查询 分类
-	queryCategoryByOwnerStmt = MustPreparexNamed(
+	queryCategoryByOwnerNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT * FROM `categorys`",
 		" WHERE `Owner` = :Owner",
@@ -298,7 +298,7 @@ func init() {
 		" ;",
 	) // 通过 Owner 查询
 
-	countCategoryByOwnerCategoryStmt = MustPreparexNamed(
+	countCategoryByOwnerCategoryNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT COUNT(*) FROM `categorys`",
 		" WHERE `OwnerCategory` = :OwnerCategory",
@@ -306,7 +306,7 @@ func init() {
 	) // 通过 OwnerCategory 统计
 
 	// 通过 所属分类 查询 分类 分类的父分类
-	queryCategoryByOwnerCategoryStmt = MustPreparexNamed(
+	queryCategoryByOwnerCategoryNamedStmt = MustPreparexNamed(
 		database,
 		" SELECT * FROM `categorys`",
 		" WHERE `OwnerCategory` = :OwnerCategory",
@@ -315,7 +315,7 @@ func init() {
 		" ;",
 	) // 通过 OwnerCategory 查询
 	// 通过 ID 更新分类的信息
-	updateCategoryByIDStmt = MustPreparexNamed(
+	updateCategoryByIDNamedStmt = MustPreparexNamed(
 		database,
 		" UPDATE `categorys` SET",
 		" `Type` = :Type,",
@@ -326,7 +326,7 @@ func init() {
 		" WHERE `ID` = :ID ;",
 	)
 	// 使用 ID 删除标签
-	deleteCategoryByIDStmt = MustPreparexNamed(
+	deleteCategoryByIDNamedStmt = MustPreparexNamed(
 		database,
 		" DELETE FROM `categorys`",
 		" WHERE `ID` = :ID ;",

@@ -5,15 +5,17 @@ import (
 	"net"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/yinxulai/goutils/grpc/interceptor"
-	"github.com/yinxulai/grpc-services/articles/provider"
-	"github.com/yinxulai/grpc-services/articles/standard"
+	"github.com/yinxulai/grpc-module-articles/provider"
+	"github.com/yinxulai/grpc-module-articles/standard"
 	"google.golang.org/grpc"
 )
 
 var isDev bool
 
 func init() {
+	godotenv.Load()
 	flag.BoolVar(&isDev, "dev", false, "运行模式，可选 dev")
 }
 
